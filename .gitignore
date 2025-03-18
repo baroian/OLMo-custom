@@ -1,0 +1,20 @@
+# Data and cache directories
+wiki_data/
+huggingface_cache/
+olmo_wiki_subset_output/
+torch/
+wandb/
+xdg_cache/
+
+# Log files (optional, remove if you want to track these)
+*.log
+inference_outputs.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
