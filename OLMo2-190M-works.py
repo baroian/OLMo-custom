@@ -30,9 +30,15 @@ from olmo_core.data import NumpyDatasetConfig, NumpyDataLoaderConfig, TokenizerC
 from olmo_core.utils import seed_all
 
 
-#### EDIT THE SCALE OF TRAINING HERE #### scale_factor = 1 means 1000 steps, 1M tokens
 
-scale_factor = 10
+#### EDIT THE SCALE OF TRAINING HERE 
+#### scale_factor = 1 means 1000 steps, 
+#### scale_factor controls 1) the number of steps, 2) the number of tokens, 3) the number of samples
+#### batch_size_factor = 8 means 1024 * 8 tokens per batch
+#### total tokens = 1024 * scale_factor * batch_size_factor
+
+scale_factor = 0.1
+batch_size_factor = 4
 
 
 
@@ -40,7 +46,18 @@ scale_factor = 10
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 # Set up directories to use /data instead of home directory
-data_dir = "/data/s4422090"
+
+# Dynamically set data directory based on hostname
+hostname = socket.gethostname()
+if 'vibranium' in hostname.lower():
+    data_dir = "/data/s4422090"
+elif 'alice' in hostname.lower() or 'nodelogin' in hostname.lower():
+    data_dir = "/data1/s4422090"
+else:
+    # Default fallback
+    data_dir = "/data1/s4422090"
+    print(f"Unknown hostname: {hostname}, defaulting to {data_dir}")
+    
 cache_dir = os.path.join(data_dir, "huggingface_cache")
 os.makedirs(cache_dir, exist_ok=True)
 
@@ -244,7 +261,7 @@ def main():
     )
     
     # Set up inference
-    inference_prompt = "Leiden University is"
+    inference_prompt = "Amsterdam is "
     inference_file = os.path.join(data_dir, "inference_outputs.txt")
     with open(inference_file, "w") as f:
         f.write(f"Inference outputs starting at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -396,7 +413,7 @@ def main():
     # Configure data loader with smaller batch size
     log_message("Configuring data loader...")
     data_loader_config = NumpyDataLoaderConfig(
-        global_batch_size= 8 * 1024,  # Keep batch size small for stability
+        global_batch_size= 1024 * batch_size_factor,  # Keep batch size small for stability
         seed=42,
         num_workers=1,
     )
