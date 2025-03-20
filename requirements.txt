@@ -1,0 +1,15 @@
+numpy<2.0
+torch>=2.5.1
+datasets
+transformers
+wandb
+tqdm
+cached-path>=1.6.6
+requests
+packaging
+rich
+omegaconf
+safetensors
+importlib_resources
+ai2-olmo-eval==0.5.0
+shutil 
