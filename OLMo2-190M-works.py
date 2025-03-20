@@ -18,6 +18,7 @@ from tqdm import tqdm
 import time
 import traceback
 import shutil
+import socket
 
 from olmo_core.config import DType
 from olmo_core.nn.transformer import TransformerConfig
@@ -37,8 +38,8 @@ from olmo_core.utils import seed_all
 #### batch_size_factor = 8 means 1024 * 8 tokens per batch
 #### total tokens = 1024 * scale_factor * batch_size_factor
 
-scale_factor = 0.1
-batch_size_factor = 4
+scale_factor = 100
+batch_size_factor = 8
 
 
 
