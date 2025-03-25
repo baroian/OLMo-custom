@@ -23,7 +23,7 @@ import math
 import gc
 
 from olmo_core.config import DType
-from olmo_core.nn.transformer import TransformerConfig, InitMethod
+from olmo_core.nn.transformer import TransformerConfig, InitMethod, TransformerActivationCheckpointingConfig
 from olmo_core.optim import AdamWConfig, OptimGroupOverride
 from olmo_core.train import TrainerConfig
 from olmo_core.train.callbacks import CheckpointerCallback, GPUMemoryMonitorCallback, WandBCallback
@@ -50,7 +50,7 @@ def log_message(message):
 # These match OLMo-core training configuration
 TOTAL_STEPS = 200
 # BATCH_SIZE will be automatically determined
-BATCH_SIZE = 8  # Initial value, will be overridden by automatic finder if enabled
+BATCH_SIZE = 12  # Initial value, will be overridden by automatic finder if enabled
 CHECKPOINT_INTERVAL = 500
 INFERENCE_INTERVAL = 50
 INFERENCE_PROMPT = "Dutch is "
@@ -494,12 +494,18 @@ if __name__ == "__main__":
         log_message("Token ID 0 will be excluded from all operations")
         model_config = TransformerConfig.olmo2_190M(
             vocab_size=tokenizer_config.padded_vocab_size(),
-            compile=False,  # Disable compilation for simplicity on a single GPU
+            compile=False,
             dtype=DType.bfloat16,
-            init_method=InitMethod.normal,  # Explicit normal initialization as in OLMo-core
-            use_flash=True,  # Enable Flash Attention
-            fused_ops=False  # Prevent using fused attention which doesn't support qk_norm
+            init_method=InitMethod.normal,
+            use_flash=True,
+            fused_ops=False,
         )
+
+        # Set activation checkpointing after creating the config
+        model_config.activation_checkpointing = TransformerActivationCheckpointingConfig(
+            mode="full_attn_only"
+        )
+
         log_message(f"Model configured with vocab size {tokenizer_config.padded_vocab_size()}")
         log_message(f"Using initialization method: {InitMethod.normal}")
         
