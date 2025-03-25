@@ -34,7 +34,8 @@ from olmo_core.utils import seed_all
 from olmo_core.nn.functional import cross_entropy_loss
 
 
-testing_this = "wiki"
+testing_this = "flash_attention"
+
 
 # Define the log_message function at the top of the file
 def log_message(message):
@@ -496,6 +497,8 @@ if __name__ == "__main__":
             compile=False,  # Disable compilation for simplicity on a single GPU
             dtype=DType.bfloat16,
             init_method=InitMethod.normal,  # Explicit normal initialization as in OLMo-core
+            use_flash=True,  # Enable Flash Attention
+            fused_ops=False  # Prevent using fused attention which doesn't support qk_norm
         )
         log_message(f"Model configured with vocab size {tokenizer_config.padded_vocab_size()}")
         log_message(f"Using initialization method: {InitMethod.normal}")
