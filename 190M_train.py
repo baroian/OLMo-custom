@@ -20,6 +20,7 @@ import traceback
 import shutil
 import socket
 import math
+import gc
 
 from olmo_core.config import DType
 from olmo_core.nn.transformer import TransformerConfig, InitMethod
@@ -32,10 +33,23 @@ from olmo_core.data import NumpyDatasetConfig, NumpyDataLoaderConfig, TokenizerC
 from olmo_core.utils import seed_all
 from olmo_core.nn.functional import cross_entropy_loss
 
+
+testing_this = "wiki"
+
+# Define the log_message function at the top of the file
+def log_message(message):
+    """Log a message to both console and file."""
+    print(message, flush=True)
+    # Only write to file if the log file path is defined
+    if 'log_file' in globals():
+        with open(log_file, "a") as f:
+            f.write(f"{message}\n")
+
 # === CONFIGURATION VARIABLES ===
 # These match OLMo-core training configuration
-TOTAL_STEPS = 1000
-BATCH_SIZE = 64  # Local batch size per GPU (scaled to match global batch size)
+TOTAL_STEPS = 200
+# BATCH_SIZE will be automatically determined
+BATCH_SIZE = 8  # Initial value, will be overridden by automatic finder if enabled
 CHECKPOINT_INTERVAL = 500
 INFERENCE_INTERVAL = 50
 INFERENCE_PROMPT = "Dutch is "
@@ -44,17 +58,102 @@ SEQUENCE_LENGTH = 1024
 Z_LOSS_MULTIPLIER = 1e-5  # Match OLMo-core configuration (in scripts/train/OLMo2-190M.py)
 WANDB_API_KEY = "8e07447fa3d6269331f7ecd0b27f8518c2a65855"
 
-# Constants for managing batch sizes
-GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH  # 4 * 1024 = 4096 tokens
-MICRO_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH  # 4 * 1024 = 4096 tokens (smaller than global batch size)
+# Flag to enable automatic batch size finding
+AUTO_FIND_BATCH_SIZE = False
+# Target GPU memory usage (percentage)
+TARGET_MEMORY_USAGE = 85  # Aim to use 85% of available GPU memory
 
-# Calculate the exact number of tokens needed for training
-# Each step needs GLOBAL_BATCH_SIZE tokens
+# Initialize these values with the initial batch size
+# They will be recalculated after auto batch size finding if enabled
+GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
 TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
-# Add 20% more tokens as a safety margin
 TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
-# Calculate number of sequences needed
 NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
+
+def find_optimal_batch_size(model, sequence_length, device, min_batch=1, max_batch=64, target_usage=0.85):
+    """
+    Find the optimal batch size that maximizes GPU memory usage without OOM errors.
+    Uses binary search to find the largest possible batch size.
+    
+    Args:
+        model: The model to test
+        sequence_length: Length of input sequences
+        device: CUDA device to use
+        min_batch: Minimum batch size to consider
+        max_batch: Maximum batch size to consider
+        target_usage: Target GPU memory usage percentage (0.0-1.0)
+        
+    Returns:
+        int: The optimal batch size
+    """
+    log_message("Finding optimal batch size...")
+    
+    # Make sure model is in eval mode for this test
+    model.eval()
+    
+    # Get total GPU memory
+    total_memory = torch.cuda.get_device_properties(device).total_memory
+    log_message(f"Total GPU memory: {total_memory / 1024**3:.2f} GB")
+    
+    # Binary search to find optimal batch size
+    low, high = min_batch, max_batch
+    optimal_size = min_batch
+    
+    while low <= high:
+        mid = (low + high) // 2
+        try:
+            # Clear cache
+            torch.cuda.empty_cache()
+            gc.collect()
+            
+            # Create a test input
+            test_input = torch.randint(
+                0, model.vocab_size, 
+                (mid, sequence_length), 
+                device=device
+            )
+            
+            # Run a forward pass
+            with torch.no_grad():
+                _ = model(test_input)
+            
+            # Check memory usage
+            memory_allocated = torch.cuda.memory_allocated(device)
+            memory_usage = memory_allocated / total_memory
+            
+            log_message(f"Batch size {mid}: {memory_usage*100:.2f}% GPU memory used")
+            
+            if memory_usage <= target_usage:
+                # This worked, so it's our new optimal size
+                optimal_size = mid
+                # Try a larger size
+                low = mid + 1
+            else:
+                # Already exceeding target usage, try smaller
+                high = mid - 1
+                
+        except torch.cuda.OutOfMemoryError:
+            # OOM error, try a smaller size
+            log_message(f"Batch size {mid} caused OOM, trying smaller")
+            high = mid - 1
+            # Clear cache after OOM
+            torch.cuda.empty_cache()
+            gc.collect()
+    
+    # Apply a safety margin of 10%
+    safe_optimal_size = max(1, int(optimal_size * 0.9))
+    
+    log_message(f"Optimal batch size found: {optimal_size}")
+    log_message(f"Using batch size with safety margin: {safe_optimal_size}")
+    
+    # Switch back to train mode
+    model.train()
+    
+    # Clear memory again
+    torch.cuda.empty_cache()
+    gc.collect()
+    
+    return safe_optimal_size
 
 def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
     """Download Wikipedia data, tokenize it to get exactly the needed number of tokens, and save as .npy file."""
@@ -307,10 +406,6 @@ if __name__ == "__main__":
         # Set CUDA_LAUNCH_BLOCKING for better error messages
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         
-        # Set specific GPU device - use GPU 1 which is less utilized
-        os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Use only GPU 1
-        log_message(f"Setting CUDA_VISIBLE_DEVICES to use GPU 1")
-        
         # Dynamically set data directory based on hostname
         hostname = socket.gethostname()
         if 'vibranium' in hostname.lower():
@@ -320,6 +415,14 @@ if __name__ == "__main__":
         else:
             # Default fallback
             data_dir = os.path.join(os.getcwd(), "data")
+        
+        # Set up the log file first, before any log_message calls
+        log_file = os.path.join(data_dir, "olmo_training.log")
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        
+        # Set specific GPU device - use GPU 1 which is less utilized
+        os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Use only GPU 1
+        log_message(f"Setting CUDA_VISIBLE_DEVICES to use GPU 1")
         
         # Set up cache directories
         cache_dir = os.path.join(data_dir, "huggingface_cache")
@@ -342,16 +445,6 @@ if __name__ == "__main__":
                           os.environ["XDG_CACHE_HOME"],
                           os.environ["HUGGINGFACE_HUB_CACHE"]]:
             os.makedirs(cache_path, exist_ok=True)
-        
-        # Set up logging to both console and file
-        log_file = os.path.join(data_dir, "olmo_training.log")
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
-        
-        def log_message(message):
-            """Log a message to both console and file."""
-            print(message, flush=True)
-            with open(log_file, "a") as f:
-                f.write(f"{message}\n")
         
         # Set random seed for reproducibility
         seed_all(42)
@@ -429,6 +522,33 @@ if __name__ == "__main__":
                 model.lm_head.w_out.bias[0] = -100.0
         log_message("Special handling for token ID 0 applied")
 
+        # Find optimal batch size if enabled
+        if AUTO_FIND_BATCH_SIZE:
+            # Don't use global declaration - we'll modify module variables directly
+            optimal_batch_size = find_optimal_batch_size(
+                model=model,
+                sequence_length=SEQUENCE_LENGTH,
+                device=device,
+                target_usage=TARGET_MEMORY_USAGE/100.0
+            )
+            log_message(f"Automatically determined batch size: {optimal_batch_size}")
+            
+            # Update global variables - Python allows reading module-level variables directly,
+            # and we can modify them in this scope without global declaration
+            BATCH_SIZE = optimal_batch_size
+            GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
+            log_message(f"Global batch size: {GLOBAL_BATCH_SIZE} tokens")
+            
+            # Recalculate the exact number of tokens needed for training with the determined batch size
+            TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
+            # Add 20% more tokens as a safety margin
+            TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
+            # Calculate number of sequences needed
+            NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
+            
+            log_message(f"Updated token needs: {TOTAL_TOKENS_NEEDED} tokens for training")
+            log_message(f"Will collect {TOTAL_TOKENS_WITH_MARGIN} tokens including margin")
+        
         # Check for NaN values in model parameters
         log_message("Checking model parameters for NaN values...")
         has_nan = False
@@ -474,7 +594,7 @@ if __name__ == "__main__":
         # Initialize wandb
         wandb.init(
             project="olmo-190m-wikipedia",
-            name=f"olmo-190m-wiki-{timestamp}",
+            name=f"190m-{testing_this}",
             config={
                 "model": "OLMo-190M",
                 "batch_size": BATCH_SIZE,
@@ -510,7 +630,7 @@ if __name__ == "__main__":
         data_loader_config = NumpyDataLoaderConfig(
             global_batch_size=GLOBAL_BATCH_SIZE,  # Use the defined constant
             seed=42,
-            num_workers=1,
+            num_workers=8,
         )
         
         # Build data loader
@@ -518,15 +638,16 @@ if __name__ == "__main__":
         data_loader = data_loader_config.build(dataset)
         log_message("Data loader built successfully")
         
-        # Configure trainer with OLMo-core settings
-        log_message("Configuring trainer with OLMo-core settings...")
+        # Configure trainer with OLMo-core settings, but without micro-batching
+        log_message("Configuring trainer with simplified batch processing (no micro-batches)...")
         trainer_config = TrainerConfig(
             save_folder=save_folder,
-            rank_microbatch_size=MICRO_BATCH_SIZE,  # Use smaller micro-batch size
+            # Use the global batch size directly - no gradient accumulation
+            rank_microbatch_size=GLOBAL_BATCH_SIZE,  
             save_overwrite=True,
             metrics_collect_interval=10,
-            cancel_check_interval=1,  # Match OLMo-core
-            z_loss_multiplier=Z_LOSS_MULTIPLIER,  # Match OLMo-core z-loss value
+            cancel_check_interval=1,
+            z_loss_multiplier=Z_LOSS_MULTIPLIER,
             compile_loss=False,  # Disable compilation for simplicity
             max_duration=Duration.steps(TOTAL_STEPS),
             device=str(device),
