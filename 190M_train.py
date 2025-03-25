@@ -21,6 +21,9 @@ import shutil
 import socket
 import math
 import gc
+import threading
+from queue import Queue
+from concurrent.futures import ThreadPoolExecutor
 
 from olmo_core.config import DType
 from olmo_core.nn.transformer import TransformerConfig, InitMethod, TransformerActivationCheckpointingConfig
@@ -34,25 +37,15 @@ from olmo_core.utils import seed_all
 from olmo_core.nn.functional import cross_entropy_loss
 
 
-testing_this = "flash_attention"
-
-
-# Define the log_message function at the top of the file
-def log_message(message):
-    """Log a message to both console and file."""
-    print(message, flush=True)
-    # Only write to file if the log file path is defined
-    if 'log_file' in globals():
-        with open(log_file, "a") as f:
-            f.write(f"{message}\n")
+testing_this = "big-run"
 
 # === CONFIGURATION VARIABLES ===
 # These match OLMo-core training configuration
-TOTAL_STEPS = 200
+TOTAL_STEPS = 100000
 # BATCH_SIZE will be automatically determined
 BATCH_SIZE = 12  # Initial value, will be overridden by automatic finder if enabled
-CHECKPOINT_INTERVAL = 500
-INFERENCE_INTERVAL = 50
+CHECKPOINT_INTERVAL = 10000
+INFERENCE_INTERVAL = 1000
 INFERENCE_PROMPT = "Dutch is "
 LEARNING_RATE = 4e-4
 SEQUENCE_LENGTH = 1024
@@ -70,6 +63,20 @@ GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
 TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
 TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
 NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
+
+
+
+
+# Define the log_message function at the top of the file
+def log_message(message):
+    """Log a message to both console and file."""
+    print(message, flush=True)
+    # Only write to file if the log file path is defined
+    if 'log_file' in globals():
+        with open(log_file, "a") as f:
+            f.write(f"{message}\n")
+
+
 
 def find_optimal_batch_size(model, sequence_length, device, min_batch=1, max_batch=64, target_usage=0.85):
     """
@@ -157,7 +164,7 @@ def find_optimal_batch_size(model, sequence_length, device, min_batch=1, max_bat
     return safe_optimal_size
 
 def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
-    """Download Wikipedia data, tokenize it to get exactly the needed number of tokens, and save as .npy file."""
+    """Download Wikipedia data, tokenize it efficiently, and save as .npy file."""
     os.makedirs(output_dir, exist_ok=True)
     log_message(f"Created output directory: {output_dir}")
     
@@ -179,7 +186,7 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
                 log_message(f"Existing data is sufficient for training")
                 return output_file
             else:
-                log_message(f"Existing data is insufficient or has incorrect sequence length: {tokens.shape[1]}, expected {SEQUENCE_LENGTH}")
+                log_message(f"Existing data is insufficient or has incorrect sequence length")
         except Exception as e:
             log_message(f"Error loading existing file: {e}")
             log_message("Will recreate the tokenized data")
@@ -199,7 +206,7 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
     
     log_message(f"Downloaded full Wikipedia dataset with {len(wiki_dataset)} articles")
     
-    # Import the tokenizer - specifically using GPT NeoX OLMo Dolma v1.5 
+    # Import the tokenizer
     log_message("Loading GPT NeoX OLMo Dolma v1.5 tokenizer...")
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(
@@ -214,92 +221,213 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
     log_message(f"Actual tokenizer vocabulary size: {actual_vocab_size}")
     log_message(f"OLMo padded vocabulary size: {vocab_size}")
     
-    # Tokenize the data
-    log_message("Tokenizing Wikipedia articles...")
-    all_token_ids = []
+    # Create a pinned memory buffer for faster transfers
+    log_message("Setting up pinned memory for efficient transfer")
+    pinned_buffer_size = min(1_000_000, TOTAL_TOKENS_WITH_MARGIN)  # Cap buffer size to avoid OOM
+    pinned_buffer = torch.zeros(pinned_buffer_size, dtype=torch.int32).pin_memory()
+    
+    # ===== MULTI-THREADED TOKENIZATION =====
+    log_message("Setting up multi-threaded tokenization pipeline")
+    
+    # Configure the number of workers for tokenization
+    num_tokenizer_workers = min(16, os.cpu_count() or 4)
+    log_message(f"Using {num_tokenizer_workers} worker threads for tokenization")
+    
+    # Queue for asynchronous processing (producer-consumer pattern)
+    # The queue will hold batches of tokenized articles
+    token_queue = Queue(maxsize=50)  # Limit queue size to control memory usage
+    
+    # Flag to signal worker threads to stop
+    stop_event = threading.Event()
+    
+    # Shared counter for monitoring progress
     processed_articles = 0
+    total_tokens_collected = 0
     
-    # Randomly shuffle article indices for diverse data
-    total_articles = len(wiki_dataset)
-    article_indices = np.random.permutation(total_articles)
+    # Lock for updating shared counters
+    counter_lock = threading.Lock()
     
-    for idx in tqdm(article_indices):
-        if processed_articles % 10 == 0:  # Log periodically
-            log_message(f"Tokenizing article {processed_articles}, collected {len(all_token_ids)} tokens so far")
-            if len(all_token_ids) > 0:
-                log_message(f"Progress: {len(all_token_ids) / TOTAL_TOKENS_WITH_MARGIN * 100:.2f}% of target")
-        
-        article = wiki_dataset[int(idx)]
-        text = article["text"]
-        
-        # Tokenize the text
-        tokens = tokenizer.encode(text)
-        
-        # Explicitly filter out token ID 0
-        tokens = [t for t in tokens if t != 0]
-        
-        # Also ensure tokens are within vocabulary range
-        if len(tokens) > 0 and max(tokens) >= vocab_size:
-            # log_message(f"Warning: Article {processed_articles} contains tokens outside vocabulary range")
+    # Create progress bar
+    pbar = tqdm(total=TOTAL_TOKENS_WITH_MARGIN, desc="Tokenizing articles")
+    
+    # Function to tokenize a batch of articles
+    def tokenize_article_batch(article_batch):
+        batch_tokens = []
+        for article in article_batch:
+            text = article["text"]
+            # Tokenize the text
+            tokens = tokenizer.encode(text)
+            
+            # Explicitly filter out token ID 0
+            tokens = [t for t in tokens if t != 0]
+            
+            # Ensure tokens are within vocabulary range
             tokens = [t for t in tokens if t < vocab_size]
-        
-        all_token_ids.extend(tokens)
-        processed_articles += 1
-        
-        # Break early if we have enough tokens
-        if len(all_token_ids) >= TOTAL_TOKENS_WITH_MARGIN:
-            log_message(f"Collected sufficient tokens: {len(all_token_ids)}")
-            break
+            
+            batch_tokens.append(tokens)
+        return batch_tokens
     
-    log_message(f"Tokenization complete. Processed {processed_articles} articles.")
-    log_message(f"Total tokens collected: {len(all_token_ids)}")
-    
-    # Log maximum token ID for diagnostics
-    if all_token_ids:
-        max_token = max(all_token_ids)
-        log_message(f"Maximum token ID in dataset: {max_token}")
+    # Producer function to fill the queue with tokenized articles
+    def producer_thread():
+        nonlocal processed_articles, total_tokens_collected
         
-        # Verify token ID 0 has been filtered out
-        token_0_count = all_token_ids.count(0)
-        log_message(f"Token ID 0 count in dataset after filtering: {token_0_count}")
-        if token_0_count > 0:
-            log_message("WARNING: Token ID 0 still exists in dataset despite filtering - will perform second pass filtering")
-            all_token_ids = [t for t in all_token_ids if t != 0]
-            log_message(f"After second filtering: Token ID 0 count = {all_token_ids.count(0)}")
+        # Randomly shuffle article indices for diverse data
+        total_articles = len(wiki_dataset)
+        article_indices = np.random.permutation(total_articles)
+        
+        # Process articles in batches
+        batch_size = 32  # Process 32 articles at a time
+        for start_idx in range(0, len(article_indices), batch_size):
+            if stop_event.is_set():
+                break
+                
+            end_idx = min(start_idx + batch_size, len(article_indices))
+            article_batch_indices = article_indices[start_idx:end_idx]
+            
+            # Get the actual articles
+            article_batch = [wiki_dataset[int(idx)] for idx in article_batch_indices]
+            
+            # Process batch with ThreadPoolExecutor for internal parallelism
+            with ThreadPoolExecutor(max_workers=num_tokenizer_workers) as executor:
+                # Split into smaller chunks for better parallelism
+                chunk_size = max(1, len(article_batch) // num_tokenizer_workers)
+                article_chunks = [article_batch[i:i+chunk_size] 
+                                  for i in range(0, len(article_batch), chunk_size)]
+                
+                # Process each chunk in parallel
+                batch_results = list(executor.map(tokenize_article_batch, article_chunks))
+                
+                # Flatten results
+                all_tokens_in_batch = []
+                for chunk_result in batch_results:
+                    all_tokens_in_batch.extend(chunk_result)
+                
+                # Put results in queue
+                if all_tokens_in_batch:
+                    token_queue.put(all_tokens_in_batch)
+                
+                # Update counters
+                with counter_lock:
+                    processed_articles += len(article_batch)
+                    token_count_in_batch = sum(len(tokens) for tokens in all_tokens_in_batch)
+                    total_tokens_collected += token_count_in_batch
+                    pbar.update(token_count_in_batch)
+                
+                # Log progress occasionally
+                if processed_articles % 1000 == 0:
+                    log_message(f"Tokenized {processed_articles} articles, collected {total_tokens_collected} tokens")
+                
+                # Check if we have enough tokens
+                if total_tokens_collected >= TOTAL_TOKENS_WITH_MARGIN:
+                    log_message(f"Collected sufficient tokens: {total_tokens_collected}")
+                    break
+    
+    # Consumer function to collect tokens from the queue and save to array
+    def consumer_thread():
+        nonlocal total_tokens_collected
+        
+        all_token_ids = []
+        
+        while not stop_event.is_set():
+            try:
+                # Get batch of tokens with timeout
+                batch_tokens = token_queue.get(timeout=10)
+                
+                # Process the batch - flatten and add to collection
+                for tokens in batch_tokens:
+                    all_token_ids.extend(tokens)
+                
+                # Mark task as done
+                token_queue.task_done()
+                
+                # Check if we have enough tokens
+                with counter_lock:
+                    if total_tokens_collected >= TOTAL_TOKENS_WITH_MARGIN:
+                        # If we have enough tokens, save them and exit
+                        break
+                    
+            except queue.Empty:
+                # Check if producer is done and queue is empty
+                if producer_thread_finished and token_queue.empty():
+                    break
+                continue
+            except Exception as e:
+                log_message(f"Error in consumer thread: {e}")
+                traceback.print_exc()
+        
+        # Save the collected tokens
+        log_message(f"Consumer finishing with {len(all_token_ids)} tokens collected")
+        
+        # Reshape tokens into sequences of SEQUENCE_LENGTH
+        log_message("Reshaping tokens into sequences...")
+        num_complete_sequences = len(all_token_ids) // SEQUENCE_LENGTH
+        tokens_to_use = num_complete_sequences * SEQUENCE_LENGTH
+        
+        shaped_tokens = np.array(all_token_ids[:tokens_to_use]).reshape(-1, SEQUENCE_LENGTH)
+        log_message(f"Created {shaped_tokens.shape[0]} sequences of length {SEQUENCE_LENGTH}")
+        
+        # Use pinned memory for efficient transfer and save
+        log_message("Transferring to pinned memory and saving...")
+        for i in range(0, shaped_tokens.shape[0], pinned_buffer_size // SEQUENCE_LENGTH):
+            end_idx = min(i + pinned_buffer_size // SEQUENCE_LENGTH, shaped_tokens.shape[0])
+            chunk = shaped_tokens[i:end_idx]
+            flat_chunk = chunk.flatten()
+            
+            # Transfer to pinned memory
+            pinned_buffer[:len(flat_chunk)].copy_(torch.tensor(flat_chunk, dtype=torch.int32))
+            
+            # If this is the first chunk, create the file, otherwise append
+            if i == 0:
+                # Save the first chunk, creating the file
+                np.save(output_file, chunk)
+            else:
+                # For subsequent chunks, we need to append to the file
+                # Load existing array
+                existing = np.load(output_file)
+                # Concatenate and save
+                combined = np.vstack((existing, chunk))
+                np.save(output_file, combined)
+                
+            log_message(f"Saved chunk {i//pinned_buffer_size} to {output_file}")
+    
+    # Start the producer thread
+    log_message("Starting producer thread...")
+    producer_thread_finished = False
+    producer = threading.Thread(target=producer_thread)
+    producer.start()
+    
+    # Start the consumer thread
+    log_message("Starting consumer thread...")
+    consumer = threading.Thread(target=consumer_thread)
+    consumer.start()
+    
+    # Wait for producer to finish
+    producer.join()
+    producer_thread_finished = True
+    log_message("Producer thread finished")
+    
+    # Signal consumer we're done
+    stop_event.set()
+    
+    # Wait for consumer to finish
+    consumer.join()
+    log_message("Consumer thread finished")
+    
+    # Close progress bar
+    pbar.close()
+    
+    # Verify the created file
+    if os.path.exists(output_file):
+        try:
+            final_tokens = np.load(output_file)
+            log_message(f"Successfully created tokenized data file with shape {final_tokens.shape}")
+            return output_file
+        except Exception as e:
+            log_message(f"Error verifying output file: {e}")
+            return None
     else:
-        raise ValueError("No tokens were generated from the Wikipedia articles.")
-    
-    # Ensure we have enough tokens for training
-    if len(all_token_ids) < TOTAL_TOKENS_NEEDED:
-        # If we don't have enough tokens, repeat what we have
-        tokens_needed = TOTAL_TOKENS_NEEDED - len(all_token_ids)
-        repetitions = (tokens_needed // len(all_token_ids)) + 1
-        log_message(f"Don't have enough tokens. Need {tokens_needed} more tokens.")
-        log_message(f"Repeating existing tokens {repetitions} times to reach target")
-        all_token_ids = all_token_ids * (repetitions + 1)
-        log_message(f"After repetition: {len(all_token_ids)} tokens")
-    
-    # Reshape into sequences
-    num_sequences = len(all_token_ids) // SEQUENCE_LENGTH
-    token_sequences = np.array(all_token_ids[:num_sequences * SEQUENCE_LENGTH]).reshape(-1, SEQUENCE_LENGTH)
-    
-    log_message(f"Created {token_sequences.shape[0]} sequences of {SEQUENCE_LENGTH} tokens")
-    log_message(f"Total number of tokens: {token_sequences.shape[0] * SEQUENCE_LENGTH}")
-    
-    # Verify we have enough for training
-    have_tokens = token_sequences.shape[0] * SEQUENCE_LENGTH
-    log_message(f"Need {TOTAL_TOKENS_NEEDED} tokens for training, have {have_tokens} tokens")
-    
-    if have_tokens < TOTAL_TOKENS_NEEDED:
-        log_message(f"WARNING: Still don't have enough tokens after repetition")
-    
-    # Save as .npy file
-    file_path = os.path.join(output_dir, "wiki_tokens.npy")
-    log_message(f"Saving {token_sequences.shape[0]} sequences of {SEQUENCE_LENGTH} tokens to {file_path}")
-    np.save(file_path, token_sequences.astype(np.int32))
-    log_message(f"Successfully saved tokenized data to {file_path}")
-    
-    return file_path
+        log_message("Failed to create output file")
+        return None
 
 def run_inference(model, tokenizer_config, inference_tokenizer, step, device="cuda"):
     """Generate text with the model for monitoring training progress."""
@@ -452,7 +580,7 @@ if __name__ == "__main__":
         log_message("Set random seed to 42")
         
         # Get device - explicitly use CUDA device 0 (which is physically GPU 1 due to CUDA_VISIBLE_DEVICES)
-        device = torch.device("cuda:0")
+        device = torch.device("cuda:1")
         log_message(f"Using device: {device} (physically GPU 1)")
         
         # Make sure CUDA is available
