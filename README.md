@@ -21,6 +21,78 @@ This script performs a complete training pipeline for a small OLMo model:
 - **Progress Monitoring**: Includes both console logging and progress bar during training
 - **Inference Testing**: Periodically generates text from a prompt to evaluate model quality
 
+## 190M_train.py
+
+An improved version of the training script with command-line arguments for easier configuration. This script:
+
+1. Downloads Wikipedia data and tokenizes it using the OLMo tokenizer
+2. Trains the OLMo 190M model with configurable parameters
+3. Logs metrics and generates sample text during training
+4. Automatically adapts to different computing environments
+
+### Command-line Arguments
+
+The script supports the following command-line arguments:
+
+```bash
+python 190M_train.py [options]
+
+Options:
+  --gpu INT          GPU ID to use (default: 0)
+  --steps INT        Total training steps (default: 100)
+  --batch-size INT   Batch size (default: 1)
+  --prompt STR       Prompt for inference (default: "Dutch is ")
+  --data-dir STR     Data directory to use (default: auto-detected)
+```
+
+### Examples
+
+Train on GPU 0 with default settings:
+```bash
+python 190M_train.py
+```
+
+Train on GPU 1 with larger batch size and more steps:
+```bash
+python 190M_train.py --gpu 1 --batch-size 4 --steps 500
+```
+
+Use a custom inference prompt and data directory:
+```bash
+python 190M_train.py --prompt "The meaning of life is " --data-dir /path/to/data
+```
+
+### Output
+
+- Model checkpoints saved in `<data_dir>/olmo_wiki_training_output_<timestamp>`
+- Training logs in `<data_dir>/olmo_training.log`
+- Metrics tracked in Weights & Biases
+
+### Setting up the Environment
+
+To set up your environment for 190M_train.py:
+
+1. Create and activate the conda environment:
+   ```bash
+   conda env create -f environment.yml
+   conda activate olmo
+   ```
+
+2. Verify the environment is set up correctly:
+   ```bash
+   python check_env.py
+   ```
+
+3. If you need to install OLMo-core from source (instead of via pip):
+   ```bash
+   git clone https://github.com/allenai/OLMo-core.git
+   cd OLMo-core
+   pip install -e .
+   cd ..
+   ```
+
+The `check_env.py` script will verify that all required dependencies are installed and that your GPU is accessible.
+
 ## Requirements
 
 The script requires the following dependencies:

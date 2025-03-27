@@ -7,6 +7,10 @@ This script:
 4. Logs metrics and generates sample text during training
 """
 
+### Make a Weights & Biases account (so i can add to the team) and put your API key here
+WANDB_API_KEY = "8e07447fa3d6269331f7ecd0b27f8518c2a65855"
+
+
 import os
 import sys
 import torch
@@ -21,9 +25,7 @@ import shutil
 import socket
 import math
 import gc
-import threading
-from queue import Queue
-from concurrent.futures import ThreadPoolExecutor
+import argparse  # Add argparse import
 
 from olmo_core.config import DType
 from olmo_core.nn.transformer import TransformerConfig, InitMethod, TransformerActivationCheckpointingConfig
@@ -37,34 +39,42 @@ from olmo_core.utils import seed_all
 from olmo_core.nn.functional import cross_entropy_loss
 
 
-testing_this = "big-run"
+testing_this = "just_test"
+
+
 
 # === CONFIGURATION VARIABLES ===
 # These match OLMo-core training configuration
-TOTAL_STEPS = 100000
-# BATCH_SIZE will be automatically determined
-BATCH_SIZE = 12  # Initial value, will be overridden by automatic finder if enabled
+TOTAL_STEPS = 200
+BATCH_SIZE = 1  # Initial value, will be overridden by command line argument
 CHECKPOINT_INTERVAL = 10000
-INFERENCE_INTERVAL = 1000
+INFERENCE_INTERVAL = 50
 INFERENCE_PROMPT = "Dutch is "
 LEARNING_RATE = 4e-4
 SEQUENCE_LENGTH = 1024
 Z_LOSS_MULTIPLIER = 1e-5  # Match OLMo-core configuration (in scripts/train/OLMo2-190M.py)
-WANDB_API_KEY = "8e07447fa3d6269331f7ecd0b27f8518c2a65855"
 
-# Flag to enable automatic batch size finding
-AUTO_FIND_BATCH_SIZE = False
-# Target GPU memory usage (percentage)
-TARGET_MEMORY_USAGE = 85  # Aim to use 85% of available GPU memory
+# check which gpu is in used in vibranium, and set here
+cuda_id = 1
 
 # Initialize these values with the initial batch size
-# They will be recalculated after auto batch size finding if enabled
+# They will be recalculated after parsing command line arguments
 GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
 TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
 TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
 NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
 
 
+
+# Function to parse command line arguments
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train a 190M OLMo model on Wikipedia data")
+    parser.add_argument("--gpu", type=int, default=0, help="GPU ID to use (default: 0)")
+    parser.add_argument("--steps", type=int, default=100, help="Total training steps (default: 500)")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size (default: 1)")
+    parser.add_argument("--prompt", type=str, default="Dutch is ", help="Prompt for inference")
+    parser.add_argument("--data-dir", type=str, default=None, help="Data directory to use")
+    return parser.parse_args()
 
 
 # Define the log_message function at the top of the file
@@ -77,94 +87,8 @@ def log_message(message):
             f.write(f"{message}\n")
 
 
-
-def find_optimal_batch_size(model, sequence_length, device, min_batch=1, max_batch=64, target_usage=0.85):
-    """
-    Find the optimal batch size that maximizes GPU memory usage without OOM errors.
-    Uses binary search to find the largest possible batch size.
-    
-    Args:
-        model: The model to test
-        sequence_length: Length of input sequences
-        device: CUDA device to use
-        min_batch: Minimum batch size to consider
-        max_batch: Maximum batch size to consider
-        target_usage: Target GPU memory usage percentage (0.0-1.0)
-        
-    Returns:
-        int: The optimal batch size
-    """
-    log_message("Finding optimal batch size...")
-    
-    # Make sure model is in eval mode for this test
-    model.eval()
-    
-    # Get total GPU memory
-    total_memory = torch.cuda.get_device_properties(device).total_memory
-    log_message(f"Total GPU memory: {total_memory / 1024**3:.2f} GB")
-    
-    # Binary search to find optimal batch size
-    low, high = min_batch, max_batch
-    optimal_size = min_batch
-    
-    while low <= high:
-        mid = (low + high) // 2
-        try:
-            # Clear cache
-            torch.cuda.empty_cache()
-            gc.collect()
-            
-            # Create a test input
-            test_input = torch.randint(
-                0, model.vocab_size, 
-                (mid, sequence_length), 
-                device=device
-            )
-            
-            # Run a forward pass
-            with torch.no_grad():
-                _ = model(test_input)
-            
-            # Check memory usage
-            memory_allocated = torch.cuda.memory_allocated(device)
-            memory_usage = memory_allocated / total_memory
-            
-            log_message(f"Batch size {mid}: {memory_usage*100:.2f}% GPU memory used")
-            
-            if memory_usage <= target_usage:
-                # This worked, so it's our new optimal size
-                optimal_size = mid
-                # Try a larger size
-                low = mid + 1
-            else:
-                # Already exceeding target usage, try smaller
-                high = mid - 1
-                
-        except torch.cuda.OutOfMemoryError:
-            # OOM error, try a smaller size
-            log_message(f"Batch size {mid} caused OOM, trying smaller")
-            high = mid - 1
-            # Clear cache after OOM
-            torch.cuda.empty_cache()
-            gc.collect()
-    
-    # Apply a safety margin of 10%
-    safe_optimal_size = max(1, int(optimal_size * 0.9))
-    
-    log_message(f"Optimal batch size found: {optimal_size}")
-    log_message(f"Using batch size with safety margin: {safe_optimal_size}")
-    
-    # Switch back to train mode
-    model.train()
-    
-    # Clear memory again
-    torch.cuda.empty_cache()
-    gc.collect()
-    
-    return safe_optimal_size
-
 def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
-    """Download Wikipedia data, tokenize it efficiently, and save as .npy file."""
+    """Download Wikipedia data, tokenize it to get exactly the needed number of tokens, and save as .npy file."""
     os.makedirs(output_dir, exist_ok=True)
     log_message(f"Created output directory: {output_dir}")
     
@@ -186,7 +110,7 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
                 log_message(f"Existing data is sufficient for training")
                 return output_file
             else:
-                log_message(f"Existing data is insufficient or has incorrect sequence length")
+                log_message(f"Existing data is insufficient or has incorrect sequence length: {tokens.shape[1]}, expected {SEQUENCE_LENGTH}")
         except Exception as e:
             log_message(f"Error loading existing file: {e}")
             log_message("Will recreate the tokenized data")
@@ -206,7 +130,7 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
     
     log_message(f"Downloaded full Wikipedia dataset with {len(wiki_dataset)} articles")
     
-    # Import the tokenizer
+    # Import the tokenizer - specifically using GPT NeoX OLMo Dolma v1.5 
     log_message("Loading GPT NeoX OLMo Dolma v1.5 tokenizer...")
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(
@@ -221,213 +145,92 @@ def download_and_tokenize_wiki_subset(output_dir, tokenizer_config):
     log_message(f"Actual tokenizer vocabulary size: {actual_vocab_size}")
     log_message(f"OLMo padded vocabulary size: {vocab_size}")
     
-    # Create a pinned memory buffer for faster transfers
-    log_message("Setting up pinned memory for efficient transfer")
-    pinned_buffer_size = min(1_000_000, TOTAL_TOKENS_WITH_MARGIN)  # Cap buffer size to avoid OOM
-    pinned_buffer = torch.zeros(pinned_buffer_size, dtype=torch.int32).pin_memory()
-    
-    # ===== MULTI-THREADED TOKENIZATION =====
-    log_message("Setting up multi-threaded tokenization pipeline")
-    
-    # Configure the number of workers for tokenization
-    num_tokenizer_workers = min(16, os.cpu_count() or 4)
-    log_message(f"Using {num_tokenizer_workers} worker threads for tokenization")
-    
-    # Queue for asynchronous processing (producer-consumer pattern)
-    # The queue will hold batches of tokenized articles
-    token_queue = Queue(maxsize=50)  # Limit queue size to control memory usage
-    
-    # Flag to signal worker threads to stop
-    stop_event = threading.Event()
-    
-    # Shared counter for monitoring progress
+    # Tokenize the data
+    log_message("Tokenizing Wikipedia articles...")
+    all_token_ids = []
     processed_articles = 0
-    total_tokens_collected = 0
     
-    # Lock for updating shared counters
-    counter_lock = threading.Lock()
+    # Randomly shuffle article indices for diverse data
+    total_articles = len(wiki_dataset)
+    article_indices = np.random.permutation(total_articles)
     
-    # Create progress bar
-    pbar = tqdm(total=TOTAL_TOKENS_WITH_MARGIN, desc="Tokenizing articles")
-    
-    # Function to tokenize a batch of articles
-    def tokenize_article_batch(article_batch):
-        batch_tokens = []
-        for article in article_batch:
-            text = article["text"]
-            # Tokenize the text
-            tokens = tokenizer.encode(text)
-            
-            # Explicitly filter out token ID 0
-            tokens = [t for t in tokens if t != 0]
-            
-            # Ensure tokens are within vocabulary range
+    for idx in tqdm(article_indices):
+        if processed_articles % 10 == 0:  # Log periodically
+            log_message(f"Tokenizing article {processed_articles}, collected {len(all_token_ids)} tokens so far")
+            if len(all_token_ids) > 0:
+                log_message(f"Progress: {len(all_token_ids) / TOTAL_TOKENS_WITH_MARGIN * 100:.2f}% of target")
+        
+        article = wiki_dataset[int(idx)]
+        text = article["text"]
+        
+        # Tokenize the text
+        tokens = tokenizer.encode(text)
+        
+        # Explicitly filter out token ID 0
+        tokens = [t for t in tokens if t != 0]
+        
+        # Also ensure tokens are within vocabulary range
+        if len(tokens) > 0 and max(tokens) >= vocab_size:
+            # log_message(f"Warning: Article {processed_articles} contains tokens outside vocabulary range")
             tokens = [t for t in tokens if t < vocab_size]
-            
-            batch_tokens.append(tokens)
-        return batch_tokens
-    
-    # Producer function to fill the queue with tokenized articles
-    def producer_thread():
-        nonlocal processed_articles, total_tokens_collected
         
-        # Randomly shuffle article indices for diverse data
-        total_articles = len(wiki_dataset)
-        article_indices = np.random.permutation(total_articles)
+        all_token_ids.extend(tokens)
+        processed_articles += 1
         
-        # Process articles in batches
-        batch_size = 32  # Process 32 articles at a time
-        for start_idx in range(0, len(article_indices), batch_size):
-            if stop_event.is_set():
-                break
-                
-            end_idx = min(start_idx + batch_size, len(article_indices))
-            article_batch_indices = article_indices[start_idx:end_idx]
-            
-            # Get the actual articles
-            article_batch = [wiki_dataset[int(idx)] for idx in article_batch_indices]
-            
-            # Process batch with ThreadPoolExecutor for internal parallelism
-            with ThreadPoolExecutor(max_workers=num_tokenizer_workers) as executor:
-                # Split into smaller chunks for better parallelism
-                chunk_size = max(1, len(article_batch) // num_tokenizer_workers)
-                article_chunks = [article_batch[i:i+chunk_size] 
-                                  for i in range(0, len(article_batch), chunk_size)]
-                
-                # Process each chunk in parallel
-                batch_results = list(executor.map(tokenize_article_batch, article_chunks))
-                
-                # Flatten results
-                all_tokens_in_batch = []
-                for chunk_result in batch_results:
-                    all_tokens_in_batch.extend(chunk_result)
-                
-                # Put results in queue
-                if all_tokens_in_batch:
-                    token_queue.put(all_tokens_in_batch)
-                
-                # Update counters
-                with counter_lock:
-                    processed_articles += len(article_batch)
-                    token_count_in_batch = sum(len(tokens) for tokens in all_tokens_in_batch)
-                    total_tokens_collected += token_count_in_batch
-                    pbar.update(token_count_in_batch)
-                
-                # Log progress occasionally
-                if processed_articles % 1000 == 0:
-                    log_message(f"Tokenized {processed_articles} articles, collected {total_tokens_collected} tokens")
-                
-                # Check if we have enough tokens
-                if total_tokens_collected >= TOTAL_TOKENS_WITH_MARGIN:
-                    log_message(f"Collected sufficient tokens: {total_tokens_collected}")
-                    break
+        # Break early if we have enough tokens
+        if len(all_token_ids) >= TOTAL_TOKENS_WITH_MARGIN:
+            log_message(f"Collected sufficient tokens: {len(all_token_ids)}")
+            break
     
-    # Consumer function to collect tokens from the queue and save to array
-    def consumer_thread():
-        nonlocal total_tokens_collected
+    log_message(f"Tokenization complete. Processed {processed_articles} articles.")
+    log_message(f"Total tokens collected: {len(all_token_ids)}")
+    
+    # Log maximum token ID for diagnostics
+    if all_token_ids:
+        max_token = max(all_token_ids)
+        log_message(f"Maximum token ID in dataset: {max_token}")
         
-        all_token_ids = []
-        
-        while not stop_event.is_set():
-            try:
-                # Get batch of tokens with timeout
-                batch_tokens = token_queue.get(timeout=10)
-                
-                # Process the batch - flatten and add to collection
-                for tokens in batch_tokens:
-                    all_token_ids.extend(tokens)
-                
-                # Mark task as done
-                token_queue.task_done()
-                
-                # Check if we have enough tokens
-                with counter_lock:
-                    if total_tokens_collected >= TOTAL_TOKENS_WITH_MARGIN:
-                        # If we have enough tokens, save them and exit
-                        break
-                    
-            except queue.Empty:
-                # Check if producer is done and queue is empty
-                if producer_thread_finished and token_queue.empty():
-                    break
-                continue
-            except Exception as e:
-                log_message(f"Error in consumer thread: {e}")
-                traceback.print_exc()
-        
-        # Save the collected tokens
-        log_message(f"Consumer finishing with {len(all_token_ids)} tokens collected")
-        
-        # Reshape tokens into sequences of SEQUENCE_LENGTH
-        log_message("Reshaping tokens into sequences...")
-        num_complete_sequences = len(all_token_ids) // SEQUENCE_LENGTH
-        tokens_to_use = num_complete_sequences * SEQUENCE_LENGTH
-        
-        shaped_tokens = np.array(all_token_ids[:tokens_to_use]).reshape(-1, SEQUENCE_LENGTH)
-        log_message(f"Created {shaped_tokens.shape[0]} sequences of length {SEQUENCE_LENGTH}")
-        
-        # Use pinned memory for efficient transfer and save
-        log_message("Transferring to pinned memory and saving...")
-        for i in range(0, shaped_tokens.shape[0], pinned_buffer_size // SEQUENCE_LENGTH):
-            end_idx = min(i + pinned_buffer_size // SEQUENCE_LENGTH, shaped_tokens.shape[0])
-            chunk = shaped_tokens[i:end_idx]
-            flat_chunk = chunk.flatten()
-            
-            # Transfer to pinned memory
-            pinned_buffer[:len(flat_chunk)].copy_(torch.tensor(flat_chunk, dtype=torch.int32))
-            
-            # If this is the first chunk, create the file, otherwise append
-            if i == 0:
-                # Save the first chunk, creating the file
-                np.save(output_file, chunk)
-            else:
-                # For subsequent chunks, we need to append to the file
-                # Load existing array
-                existing = np.load(output_file)
-                # Concatenate and save
-                combined = np.vstack((existing, chunk))
-                np.save(output_file, combined)
-                
-            log_message(f"Saved chunk {i//pinned_buffer_size} to {output_file}")
-    
-    # Start the producer thread
-    log_message("Starting producer thread...")
-    producer_thread_finished = False
-    producer = threading.Thread(target=producer_thread)
-    producer.start()
-    
-    # Start the consumer thread
-    log_message("Starting consumer thread...")
-    consumer = threading.Thread(target=consumer_thread)
-    consumer.start()
-    
-    # Wait for producer to finish
-    producer.join()
-    producer_thread_finished = True
-    log_message("Producer thread finished")
-    
-    # Signal consumer we're done
-    stop_event.set()
-    
-    # Wait for consumer to finish
-    consumer.join()
-    log_message("Consumer thread finished")
-    
-    # Close progress bar
-    pbar.close()
-    
-    # Verify the created file
-    if os.path.exists(output_file):
-        try:
-            final_tokens = np.load(output_file)
-            log_message(f"Successfully created tokenized data file with shape {final_tokens.shape}")
-            return output_file
-        except Exception as e:
-            log_message(f"Error verifying output file: {e}")
-            return None
+        # Verify token ID 0 has been filtered out
+        token_0_count = all_token_ids.count(0)
+        log_message(f"Token ID 0 count in dataset after filtering: {token_0_count}")
+        if token_0_count > 0:
+            log_message("WARNING: Token ID 0 still exists in dataset despite filtering - will perform second pass filtering")
+            all_token_ids = [t for t in all_token_ids if t != 0]
+            log_message(f"After second filtering: Token ID 0 count = {all_token_ids.count(0)}")
     else:
-        log_message("Failed to create output file")
-        return None
+        raise ValueError("No tokens were generated from the Wikipedia articles.")
+    
+    # Ensure we have enough tokens for training
+    if len(all_token_ids) < TOTAL_TOKENS_NEEDED:
+        # If we don't have enough tokens, repeat what we have
+        tokens_needed = TOTAL_TOKENS_NEEDED - len(all_token_ids)
+        repetitions = (tokens_needed // len(all_token_ids)) + 1
+        log_message(f"Don't have enough tokens. Need {tokens_needed} more tokens.")
+        log_message(f"Repeating existing tokens {repetitions} times to reach target")
+        all_token_ids = all_token_ids * (repetitions + 1)
+        log_message(f"After repetition: {len(all_token_ids)} tokens")
+    
+    # Reshape into sequences
+    num_sequences = len(all_token_ids) // SEQUENCE_LENGTH
+    token_sequences = np.array(all_token_ids[:num_sequences * SEQUENCE_LENGTH]).reshape(-1, SEQUENCE_LENGTH)
+    
+    log_message(f"Created {token_sequences.shape[0]} sequences of {SEQUENCE_LENGTH} tokens")
+    log_message(f"Total number of tokens: {token_sequences.shape[0] * SEQUENCE_LENGTH}")
+    
+    # Verify we have enough for training
+    have_tokens = token_sequences.shape[0] * SEQUENCE_LENGTH
+    log_message(f"Need {TOTAL_TOKENS_NEEDED} tokens for training, have {have_tokens} tokens")
+    
+    if have_tokens < TOTAL_TOKENS_NEEDED:
+        log_message(f"WARNING: Still don't have enough tokens after repetition")
+    
+    # Save as .npy file
+    file_path = os.path.join(output_dir, "wiki_tokens.npy")
+    log_message(f"Saving {token_sequences.shape[0]} sequences of {SEQUENCE_LENGTH} tokens to {file_path}")
+    np.save(file_path, token_sequences.astype(np.int32))
+    log_message(f"Successfully saved tokenized data to {file_path}")
+    
+    return file_path
 
 def run_inference(model, tokenizer_config, inference_tokenizer, step, device="cuda"):
     """Generate text with the model for monitoring training progress."""
@@ -529,29 +332,47 @@ if __name__ == "__main__":
         start_time = time.time()
         print(f"Script started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
         
+        # Parse command line arguments
+        args = parse_args()
+        
+        # Update global variables from command line arguments
+        cuda_id = args.gpu
+        TOTAL_STEPS = args.steps
+        BATCH_SIZE = args.batch_size
+        INFERENCE_PROMPT = args.prompt
+        
+        # Recalculate dependent variables
+        GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
+        TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
+        TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
+        NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
+        
         # Set up Weights & Biases for detailed logging
         os.environ["WANDB_API_KEY"] = WANDB_API_KEY
         
         # Set CUDA_LAUNCH_BLOCKING for better error messages
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        os.environ["CUDA_LAUNCH_BLOCKING"] = str(cuda_id)
         
-        # Dynamically set data directory based on hostname
-        hostname = socket.gethostname()
-        if 'vibranium' in hostname.lower():
-            data_dir = "/data/s4422090"
-        elif 'alice' in hostname.lower() or 'nodelogin' in hostname.lower():
-            data_dir = "/data1/s4422090"
+        # Dynamically set data directory based on hostname or command line argument
+        if args.data_dir:
+            data_dir = args.data_dir
         else:
-            # Default fallback
-            data_dir = os.path.join(os.getcwd(), "data")
+            hostname = socket.gethostname()
+            if 'vibranium' in hostname.lower():
+                data_dir = f"/data/{os.environ.get('USER')}"
+            elif 'alice' in hostname.lower() or 'nodelogin' in hostname.lower():
+                data_dir = f"/data1/{os.environ.get('USER')}"
+            else:
+                # Default fallback
+                data_dir = os.path.join(os.getcwd(), "data")
         
         # Set up the log file first, before any log_message calls
         log_file = os.path.join(data_dir, "olmo_training.log")
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         
-        # Set specific GPU device - use GPU 1 which is less utilized
-        os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Use only GPU 1
-        log_message(f"Setting CUDA_VISIBLE_DEVICES to use GPU 1")
+        # Set specific GPU device
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(cuda_id)
+        log_message(f"Setting CUDA_VISIBLE_DEVICES to use GPU {cuda_id}")
         
         # Set up cache directories
         cache_dir = os.path.join(data_dir, "huggingface_cache")
@@ -579,9 +400,9 @@ if __name__ == "__main__":
         seed_all(42)
         log_message("Set random seed to 42")
         
-        # Get device - explicitly use CUDA device 0 (which is physically GPU 1 due to CUDA_VISIBLE_DEVICES)
-        device = torch.device("cuda:1")
-        log_message(f"Using device: {device} (physically GPU 1)")
+        # Get device - when CUDA_VISIBLE_DEVICES is set, the selected GPU becomes cuda:0
+        device = torch.device(f"cuda:0")
+        log_message(f"Using device: {device} (physically GPU {cuda_id})")
         
         # Make sure CUDA is available
         if not torch.cuda.is_available():
@@ -658,33 +479,6 @@ if __name__ == "__main__":
             if hasattr(model.lm_head, 'w_out') and model.lm_head.w_out.bias is not None:
                 model.lm_head.w_out.bias[0] = -100.0
         log_message("Special handling for token ID 0 applied")
-
-        # Find optimal batch size if enabled
-        if AUTO_FIND_BATCH_SIZE:
-            # Don't use global declaration - we'll modify module variables directly
-            optimal_batch_size = find_optimal_batch_size(
-                model=model,
-                sequence_length=SEQUENCE_LENGTH,
-                device=device,
-                target_usage=TARGET_MEMORY_USAGE/100.0
-            )
-            log_message(f"Automatically determined batch size: {optimal_batch_size}")
-            
-            # Update global variables - Python allows reading module-level variables directly,
-            # and we can modify them in this scope without global declaration
-            BATCH_SIZE = optimal_batch_size
-            GLOBAL_BATCH_SIZE = BATCH_SIZE * SEQUENCE_LENGTH
-            log_message(f"Global batch size: {GLOBAL_BATCH_SIZE} tokens")
-            
-            # Recalculate the exact number of tokens needed for training with the determined batch size
-            TOTAL_TOKENS_NEEDED = TOTAL_STEPS * GLOBAL_BATCH_SIZE
-            # Add 20% more tokens as a safety margin
-            TOTAL_TOKENS_WITH_MARGIN = int(TOTAL_TOKENS_NEEDED * 1.2)
-            # Calculate number of sequences needed
-            NUM_SEQUENCES_NEEDED = (TOTAL_TOKENS_NEEDED + SEQUENCE_LENGTH - 1) // SEQUENCE_LENGTH
-            
-            log_message(f"Updated token needs: {TOTAL_TOKENS_NEEDED} tokens for training")
-            log_message(f"Will collect {TOTAL_TOKENS_WITH_MARGIN} tokens including margin")
         
         # Check for NaN values in model parameters
         log_message("Checking model parameters for NaN values...")

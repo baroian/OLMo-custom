@@ -1,0 +1,476 @@
+Starting token frequency analysis... (Saving results to /data/s4422090/OLMo-custom/data_for_investigation)
+Searching for .npy training data files...
+Searching in /data/s4422090/wiki_data
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens.npy...
+Loaded file with shape (295, 1024)
+Total tokens: 302080
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 16247 occurrences (5.3784%)
+  Token ID 13 (','): 13592 occurrences (4.4995%)
+  Token ID 253 (' the'): 9535 occurrences (3.1564%)
+  Token ID 15 ('.'): 8357 occurrences (2.7665%)
+  Token ID 273 (' of'): 6143 occurrences (2.0336%)
+  Token ID 285 (' and'): 4992 occurrences (1.6525%)
+  Token ID 275 (' in'): 4866 occurrences (1.6108%)
+  Token ID 281 (' to'): 3142 occurrences (1.0401%)
+  Token ID 247 (' a'): 2989 occurrences (0.9895%)
+  Token ID 14 ('-'): 2843 occurrences (0.9411%)
+  Token ID 313 (' ('): 2324 occurrences (0.7693%)
+  Token ID 369 (' was'): 1785 occurrences (0.5909%)
+  Token ID 323 (' for'): 1740 occurrences (0.5760%)
+  Token ID 310 (' is'): 1581 occurrences (0.5234%)
+  Token ID 10 (')'): 1518 occurrences (0.5025%)
+  Token ID 347 (' as'): 1305 occurrences (0.4320%)
+  Token ID 407 (' by'): 1230 occurrences (0.4072%)
+  Token ID 342 (' with'): 1150 occurrences (0.3807%)
+  Token ID 327 (' on'): 1117 occurrences (0.3698%)
+  Token ID 380 (' The'): 1093 occurrences (0.3618%)
+Number of unique tokens: 16781
+Number of tokens responsible for 50% of occurrences: 319
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens_scale0.1_batch8.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens_scale0.1_batch8.npy...
+Loaded file with shape (1383, 1024)
+Using 1000 random samples for analysis
+Total tokens: 1024000
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 49417 occurrences (4.8259%)
+  Token ID 13 (','): 38830 occurrences (3.7920%)
+  Token ID 253 (' the'): 36713 occurrences (3.5853%)
+  Token ID 15 ('.'): 30612 occurrences (2.9895%)
+  Token ID 273 (' of'): 22289 occurrences (2.1767%)
+  Token ID 285 (' and'): 18248 occurrences (1.7820%)
+  Token ID 275 (' in'): 16774 occurrences (1.6381%)
+  Token ID 247 (' a'): 11874 occurrences (1.1596%)
+  Token ID 281 (' to'): 11735 occurrences (1.1460%)
+  Token ID 14 ('-'): 9411 occurrences (0.9190%)
+  Token ID 313 (' ('): 8032 occurrences (0.7844%)
+  Token ID 369 (' was'): 7121 occurrences (0.6954%)
+  Token ID 310 (' is'): 5674 occurrences (0.5541%)
+  Token ID 10 (')'): 5441 occurrences (0.5313%)
+  Token ID 323 (' for'): 5101 occurrences (0.4981%)
+  Token ID 347 (' as'): 4961 occurrences (0.4845%)
+  Token ID 327 (' on'): 4743 occurrences (0.4632%)
+  Token ID 407 (' by'): 4534 occurrences (0.4428%)
+  Token ID 380 (' The'): 4275 occurrences (0.4175%)
+  Token ID 434 (''s'): 4191 occurrences (0.4093%)
+Number of unique tokens: 33876
+Number of tokens responsible for 50% of occurrences: 331
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.1_batch8_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.1_batch8_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.1_batch8_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.1_batch8_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens_val.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens_val.npy...
+Loaded file with shape (538, 1024)
+Total tokens: 550912
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 27529 occurrences (4.9970%)
+  Token ID 13 (','): 21159 occurrences (3.8407%)
+  Token ID 253 (' the'): 19174 occurrences (3.4804%)
+  Token ID 15 ('.'): 15887 occurrences (2.8838%)
+  Token ID 273 (' of'): 11667 occurrences (2.1178%)
+  Token ID 285 (' and'): 9609 occurrences (1.7442%)
+  Token ID 275 (' in'): 8871 occurrences (1.6102%)
+  Token ID 281 (' to'): 6203 occurrences (1.1260%)
+  Token ID 247 (' a'): 6026 occurrences (1.0938%)
+  Token ID 14 ('-'): 5309 occurrences (0.9637%)
+  Token ID 313 (' ('): 4659 occurrences (0.8457%)
+  Token ID 369 (' was'): 3811 occurrences (0.6918%)
+  Token ID 10 (')'): 3239 occurrences (0.5879%)
+  Token ID 310 (' is'): 2772 occurrences (0.5032%)
+  Token ID 323 (' for'): 2702 occurrences (0.4905%)
+  Token ID 347 (' as'): 2672 occurrences (0.4850%)
+  Token ID 327 (' on'): 2514 occurrences (0.4563%)
+  Token ID 407 (' by'): 2391 occurrences (0.4340%)
+  Token ID 380 (' The'): 2189 occurrences (0.3973%)
+  Token ID 342 (' with'): 2177 occurrences (0.3952%)
+Number of unique tokens: 27858
+Number of tokens responsible for 50% of occurrences: 328
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_val_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_val_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_val_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_val_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens_scale0.4_batch4.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens_scale0.4_batch4.npy...
+Loaded file with shape (2923, 1024)
+Using 1000 random samples for analysis
+Total tokens: 1024000
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 47278 occurrences (4.6170%)
+  Token ID 13 (','): 38714 occurrences (3.7807%)
+  Token ID 253 (' the'): 36736 occurrences (3.5875%)
+  Token ID 15 ('.'): 30766 occurrences (3.0045%)
+  Token ID 273 (' of'): 22140 occurrences (2.1621%)
+  Token ID 285 (' and'): 18486 occurrences (1.8053%)
+  Token ID 275 (' in'): 17008 occurrences (1.6609%)
+  Token ID 281 (' to'): 12337 occurrences (1.2048%)
+  Token ID 247 (' a'): 12110 occurrences (1.1826%)
+  Token ID 14 ('-'): 9042 occurrences (0.8830%)
+  Token ID 313 (' ('): 7895 occurrences (0.7710%)
+  Token ID 369 (' was'): 7156 occurrences (0.6988%)
+  Token ID 310 (' is'): 5625 occurrences (0.5493%)
+  Token ID 10 (')'): 5251 occurrences (0.5128%)
+  Token ID 323 (' for'): 5022 occurrences (0.4904%)
+  Token ID 347 (' as'): 4910 occurrences (0.4795%)
+  Token ID 407 (' by'): 4669 occurrences (0.4560%)
+  Token ID 327 (' on'): 4583 occurrences (0.4476%)
+  Token ID 342 (' with'): 4246 occurrences (0.4146%)
+  Token ID 434 (''s'): 4140 occurrences (0.4043%)
+Number of unique tokens: 34225
+Number of tokens responsible for 50% of occurrences: 327
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch4_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch4_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch4_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch4_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens_scale0.4_batch1.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens_scale0.4_batch1.npy...
+Loaded file with shape (663, 1024)
+Total tokens: 678912
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 33861 occurrences (4.9875%)
+  Token ID 13 (','): 27409 occurrences (4.0372%)
+  Token ID 253 (' the'): 25425 occurrences (3.7450%)
+  Token ID 15 ('.'): 20752 occurrences (3.0567%)
+  Token ID 273 (' of'): 15451 occurrences (2.2758%)
+  Token ID 285 (' and'): 12513 occurrences (1.8431%)
+  Token ID 275 (' in'): 11778 occurrences (1.7348%)
+  Token ID 281 (' to'): 8057 occurrences (1.1868%)
+  Token ID 247 (' a'): 7846 occurrences (1.1557%)
+  Token ID 14 ('-'): 6266 occurrences (0.9229%)
+  Token ID 313 (' ('): 5258 occurrences (0.7745%)
+  Token ID 369 (' was'): 4956 occurrences (0.7300%)
+  Token ID 310 (' is'): 3826 occurrences (0.5635%)
+  Token ID 10 (')'): 3641 occurrences (0.5363%)
+  Token ID 323 (' for'): 3497 occurrences (0.5151%)
+  Token ID 347 (' as'): 3407 occurrences (0.5018%)
+  Token ID 327 (' on'): 3245 occurrences (0.4780%)
+  Token ID 407 (' by'): 3131 occurrences (0.4612%)
+  Token ID 380 (' The'): 2977 occurrences (0.4385%)
+  Token ID 342 (' with'): 2834 occurrences (0.4174%)
+Number of unique tokens: 25959
+Number of tokens responsible for 50% of occurrences: 292
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch1_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch1_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch1_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_scale0.4_batch1_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data/wiki_tokens_train.npy
+Analyzing /data/s4422090/wiki_data/wiki_tokens_train.npy...
+Loaded file with shape (2156, 1024)
+Using 1000 random samples for analysis
+Total tokens: 1024000
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 48505 occurrences (4.7368%)
+  Token ID 13 (','): 38249 occurrences (3.7353%)
+  Token ID 253 (' the'): 37480 occurrences (3.6602%)
+  Token ID 15 ('.'): 31441 occurrences (3.0704%)
+  Token ID 273 (' of'): 22771 occurrences (2.2237%)
+  Token ID 285 (' and'): 18490 occurrences (1.8057%)
+  Token ID 275 (' in'): 16901 occurrences (1.6505%)
+  Token ID 247 (' a'): 11841 occurrences (1.1563%)
+  Token ID 281 (' to'): 11833 occurrences (1.1556%)
+  Token ID 14 ('-'): 9172 occurrences (0.8957%)
+  Token ID 313 (' ('): 7570 occurrences (0.7393%)
+  Token ID 369 (' was'): 7406 occurrences (0.7232%)
+  Token ID 310 (' is'): 5804 occurrences (0.5668%)
+  Token ID 323 (' for'): 5239 occurrences (0.5116%)
+  Token ID 10 (')'): 5096 occurrences (0.4977%)
+  Token ID 347 (' as'): 5016 occurrences (0.4898%)
+  Token ID 327 (' on'): 4956 occurrences (0.4840%)
+  Token ID 407 (' by'): 4573 occurrences (0.4466%)
+  Token ID 380 (' The'): 4316 occurrences (0.4215%)
+  Token ID 434 (''s'): 4296 occurrences (0.4195%)
+Number of unique tokens: 32179
+Number of tokens responsible for 50% of occurrences: 325
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_train_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_train_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_train_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_train_token_freq_histogram.png
+Searching in /data/s4422090/olmo_wiki_training_output
+Found .npy file: /data/s4422090/olmo_wiki_training_output/dataset_work_dir/global_indices_epoch1_seed42_size588.npy
+Analyzing /data/s4422090/olmo_wiki_training_output/dataset_work_dir/global_indices_epoch1_seed42_size588.npy...
+Error analyzing file: Cannot load file containing pickled data when allow_pickle=False
+Searching in /data/s4422090
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/dataset_work_dir/global_indices_epoch1_seed42_size496.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/dataset_work_dir/global_indices_epoch1_seed42_size496.npy...
+Error analyzing file: Cannot load file containing pickled data when allow_pickle=False
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_2.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_2.npy...
+Loaded file with shape (50, 1024)
+Total tokens: 51200
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 8061 ('Thanks'): 7 occurrences (0.0137%)
+  Token ID 21640 (' 146'): 7 occurrences (0.0137%)
+  Token ID 48466 (' 1884'): 7 occurrences (0.0137%)
+  Token ID 23671 ('\-'): 7 occurrences (0.0137%)
+  Token ID 12474 (' attributes'): 6 occurrences (0.0117%)
+  Token ID 28835 ('0014'): 6 occurrences (0.0117%)
+  Token ID 35396 ('phon'): 6 occurrences (0.0117%)
+  Token ID 31302 (' XP'): 6 occurrences (0.0117%)
+  Token ID 49206 (' chitosan'): 6 occurrences (0.0117%)
+  Token ID 20375 (' earnings'): 6 occurrences (0.0117%)
+  Token ID 48111 ('Labor'): 6 occurrences (0.0117%)
+  Token ID 19436 (' Steven'): 6 occurrences (0.0117%)
+  Token ID 22522 (' chuck'): 6 occurrences (0.0117%)
+  Token ID 46180 ('�'): 6 occurrences (0.0117%)
+  Token ID 27280 (' Nak'): 6 occurrences (0.0117%)
+  Token ID 31034 ('HQ'): 6 occurrences (0.0117%)
+  Token ID 19201 (' horrible'): 6 occurrences (0.0117%)
+  Token ID 39646 ('StackTrace'): 6 occurrences (0.0117%)
+  Token ID 2545 (' Eng'): 6 occurrences (0.0117%)
+  Token ID 24040 (' programmes'): 6 occurrences (0.0117%)
+Number of unique tokens: 32187
+Number of tokens responsible for 50% of occurrences: 10091
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_2_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_2_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_2_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_2_token_freq_histogram.png
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_1.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_1.npy...
+Loaded file with shape (50, 1024)
+Total tokens: 51200
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 40290 (' experimentation'): 8 occurrences (0.0156%)
+  Token ID 5447 (' database'): 7 occurrences (0.0137%)
+  Token ID 34920 ('957'): 7 occurrences (0.0137%)
+  Token ID 36958 (' ECG'): 7 occurrences (0.0137%)
+  Token ID 1194 ('AT'): 6 occurrences (0.0117%)
+  Token ID 3567 ('ributed'): 6 occurrences (0.0117%)
+  Token ID 43848 (' clog'): 6 occurrences (0.0117%)
+  Token ID 44006 ('单'): 6 occurrences (0.0117%)
+  Token ID 25897 ('Friday'): 6 occurrences (0.0117%)
+  Token ID 11098 (' singular'): 6 occurrences (0.0117%)
+  Token ID 47721 (' Ladies'): 6 occurrences (0.0117%)
+  Token ID 27780 ('umines'): 6 occurrences (0.0117%)
+  Token ID 7847 ('%%'): 6 occurrences (0.0117%)
+  Token ID 25173 (' Original'): 6 occurrences (0.0117%)
+  Token ID 12054 (' reasonably'): 6 occurrences (0.0117%)
+  Token ID 39503 (' Eyes'): 6 occurrences (0.0117%)
+  Token ID 20519 ('Hg'): 6 occurrences (0.0117%)
+  Token ID 36075 ('ución'): 6 occurrences (0.0117%)
+  Token ID 42508 (' exceedingly'): 6 occurrences (0.0117%)
+  Token ID 16508 (' Abs'): 6 occurrences (0.0117%)
+Number of unique tokens: 32103
+Number of tokens responsible for 50% of occurrences: 10057
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_1_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_1_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_1_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_1_token_freq_histogram.png
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_0.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_0.npy...
+Loaded file with shape (50, 1024)
+Total tokens: 51200
+Token ID 0 (|||IP_ADDRESS|||) count: 1
+Token ID 0 percentage: 0.0020%
+Top 20 most frequent tokens:
+  Token ID 28221 ('qt'): 8 occurrences (0.0156%)
+  Token ID 41881 ('goal'): 7 occurrences (0.0137%)
+  Token ID 12687 (' predomin'): 7 occurrences (0.0137%)
+  Token ID 41775 (' misuse'): 7 occurrences (0.0137%)
+  Token ID 28452 (' cleaner'): 7 occurrences (0.0137%)
+  Token ID 44646 (' GRANT'): 6 occurrences (0.0117%)
+  Token ID 29213 ('adores'): 6 occurrences (0.0117%)
+  Token ID 34128 (' 336'): 6 occurrences (0.0117%)
+  Token ID 4681 ('.['): 6 occurrences (0.0117%)
+  Token ID 46770 ('ことが'): 6 occurrences (0.0117%)
+  Token ID 34068 (' 430'): 6 occurrences (0.0117%)
+  Token ID 42920 ('ி'): 6 occurrences (0.0117%)
+  Token ID 25134 ('stad'): 6 occurrences (0.0117%)
+  Token ID 28135 (' tenure'): 6 occurrences (0.0117%)
+  Token ID 29033 ('Mag'): 6 occurrences (0.0117%)
+  Token ID 28575 ('packet'): 6 occurrences (0.0117%)
+  Token ID 39048 (' decir'): 6 occurrences (0.0117%)
+  Token ID 20876 (' responsive'): 6 occurrences (0.0117%)
+  Token ID 38973 (' Jung'): 6 occurrences (0.0117%)
+  Token ID 18911 ('320'): 6 occurrences (0.0117%)
+Number of unique tokens: 32073
+Number of tokens responsible for 50% of occurrences: 10057
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_0_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+  Position 465: 2.0000%
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_0_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_0_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_0_token_freq_histogram.png
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_4.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_4.npy...
+Loaded file with shape (50, 1024)
+Total tokens: 51200
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 40969 ('值'): 7 occurrences (0.0137%)
+  Token ID 35389 ('PY'): 7 occurrences (0.0137%)
+  Token ID 39825 (' ventil'): 7 occurrences (0.0137%)
+  Token ID 24365 (' implantation'): 7 occurrences (0.0137%)
+  Token ID 10400 (' Pers'): 6 occurrences (0.0117%)
+  Token ID 7792 (' framework'): 6 occurrences (0.0117%)
+  Token ID 13463 (' overnight'): 6 occurrences (0.0117%)
+  Token ID 40325 (' Creator'): 6 occurrences (0.0117%)
+  Token ID 10186 ('world'): 6 occurrences (0.0117%)
+  Token ID 8035 (' Another'): 6 occurrences (0.0117%)
+  Token ID 44615 (' congreg'): 6 occurrences (0.0117%)
+  Token ID 45154 ('pins'): 6 occurrences (0.0117%)
+  Token ID 27511 (' objected'): 6 occurrences (0.0117%)
+  Token ID 29326 (' anime'): 6 occurrences (0.0117%)
+  Token ID 4653 (' PR'): 6 occurrences (0.0117%)
+  Token ID 3865 (' anim'): 6 occurrences (0.0117%)
+  Token ID 5225 ('的'): 6 occurrences (0.0117%)
+  Token ID 13720 ('Serv'): 6 occurrences (0.0117%)
+  Token ID 9254 (' inqu'): 6 occurrences (0.0117%)
+  Token ID 22175 (' emphasize'): 6 occurrences (0.0117%)
+Number of unique tokens: 32071
+Number of tokens responsible for 50% of occurrences: 10071
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_4_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_4_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_4_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_4_token_freq_histogram.png
+Found .npy file: /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_3.npy
+Analyzing /data/s4422090/OLMo-core/test_run_output/synthetic_data/synthetic_data_3.npy...
+Loaded file with shape (50, 1024)
+Total tokens: 51200
+Token ID 0 (|||IP_ADDRESS|||) count: 1
+Token ID 0 percentage: 0.0020%
+Top 20 most frequent tokens:
+  Token ID 15656 ('pb'): 7 occurrences (0.0137%)
+  Token ID 11846 (' Event'): 7 occurrences (0.0137%)
+  Token ID 16748 (' remedy'): 7 occurrences (0.0137%)
+  Token ID 21357 ('regn'): 7 occurrences (0.0137%)
+  Token ID 34976 ('eurs'): 6 occurrences (0.0117%)
+  Token ID 11021 ('Output'): 6 occurrences (0.0117%)
+  Token ID 26691 ('icos'): 6 occurrences (0.0117%)
+  Token ID 47264 ('}-{\'): 6 occurrences (0.0117%)
+  Token ID 36203 (' saliv'): 6 occurrences (0.0117%)
+  Token ID 8731 ('setlength'): 6 occurrences (0.0117%)
+  Token ID 16461 ('curs'): 6 occurrences (0.0117%)
+  Token ID 5899 (' traditional'): 6 occurrences (0.0117%)
+  Token ID 49341 ('Weak'): 6 occurrences (0.0117%)
+  Token ID 24920 (' contamin'): 6 occurrences (0.0117%)
+  Token ID 6547 ('cluding'): 6 occurrences (0.0117%)
+  Token ID 1298 (' equ'): 6 occurrences (0.0117%)
+  Token ID 7131 ('uesday'): 6 occurrences (0.0117%)
+  Token ID 11691 (' scored'): 6 occurrences (0.0117%)
+  Token ID 18164 (' rendering'): 6 occurrences (0.0117%)
+  Token ID 27764 ('orest'): 6 occurrences (0.0117%)
+Number of unique tokens: 32140
+Number of tokens responsible for 50% of occurrences: 10078
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_3_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+  Position 302: 2.0000%
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_3_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_3_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/synthetic_data_3_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_synthetic_data/wiki_tokens.npy
+Analyzing /data/s4422090/wiki_synthetic_data/wiki_tokens.npy...
+Loaded file with shape (100, 1024)
+Total tokens: 102400
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 645 ('ook'): 8 occurrences (0.0078%)
+  Token ID 23386 ('stackrel'): 7 occurrences (0.0068%)
+  Token ID 49294 (' mistakenly'): 7 occurrences (0.0068%)
+  Token ID 63001 (''): 7 occurrences (0.0068%)
+  Token ID 61439 (''): 7 occurrences (0.0068%)
+  Token ID 67969 (''): 6 occurrences (0.0059%)
+  Token ID 55016 (''): 6 occurrences (0.0059%)
+  Token ID 5801 ('hi'): 6 occurrences (0.0059%)
+  Token ID 16964 (' habits'): 6 occurrences (0.0059%)
+  Token ID 87508 (''): 6 occurrences (0.0059%)
+  Token ID 44327 (' (≥'): 6 occurrences (0.0059%)
+  Token ID 45765 (' decomposed'): 6 occurrences (0.0059%)
+  Token ID 94242 (''): 6 occurrences (0.0059%)
+  Token ID 53551 (''): 6 occurrences (0.0059%)
+  Token ID 207 (''): 6 occurrences (0.0059%)
+  Token ID 31174 ('Williams'): 6 occurrences (0.0059%)
+  Token ID 87983 (''): 6 occurrences (0.0059%)
+  Token ID 30373 ('icher'): 6 occurrences (0.0059%)
+  Token ID 11254 (' deviation'): 6 occurrences (0.0059%)
+  Token ID 78840 (''): 6 occurrences (0.0059%)
+Number of unique tokens: 64171
+Number of tokens responsible for 50% of occurrences: 20240
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_0_by_position.png
+Saved position data to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_0_by_position.csv
+Saved token frequency histogram to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_freq_histogram.png
+Found .npy file: /data/s4422090/wiki_data_clean/wiki_tokens.npy
+Analyzing /data/s4422090/wiki_data_clean/wiki_tokens.npy...
+Loaded file with shape (295, 1024)
+Total tokens: 302080
+Token ID 0 (|||IP_ADDRESS|||) count: 0
+Token ID 0 percentage: 0.0000%
+Top 20 most frequent tokens:
+  Token ID 187 ('
+'): 16247 occurrences (5.3784%)
+  Token ID 13 (','): 13592 occurrences (4.4995%)
+  Token ID 253 (' the'): 9535 occurrences (3.1564%)
+  Token ID 15 ('.'): 8357 occurrences (2.7665%)
+  Token ID 273 (' of'): 6143 occurrences (2.0336%)
+  Token ID 285 (' and'): 4992 occurrences (1.6525%)
+  Token ID 275 (' in'): 4866 occurrences (1.6108%)
+  Token ID 281 (' to'): 3142 occurrences (1.0401%)
+  Token ID 247 (' a'): 2989 occurrences (0.9895%)
+  Token ID 14 ('-'): 2843 occurrences (0.9411%)
+  Token ID 313 (' ('): 2324 occurrences (0.7693%)
+  Token ID 369 (' was'): 1785 occurrences (0.5909%)
+  Token ID 323 (' for'): 1740 occurrences (0.5760%)
+  Token ID 310 (' is'): 1581 occurrences (0.5234%)
+  Token ID 10 (')'): 1518 occurrences (0.5025%)
+  Token ID 347 (' as'): 1305 occurrences (0.4320%)
+  Token ID 407 (' by'): 1230 occurrences (0.4072%)
+  Token ID 342 (' with'): 1150 occurrences (0.3807%)
+  Token ID 327 (' on'): 1117 occurrences (0.3698%)
+  Token ID 380 (' The'): 1093 occurrences (0.3618%)
+Number of unique tokens: 16781
+Number of tokens responsible for 50% of occurrences: 319
+Saved token counts to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_counts.csv
+
+Token ID 0 occurrence by position in sequence:
+Saved position analysis plot to /data/s4422090/OLMo-custom/data_for_investigation/wiki_tokens_token_0_by_position.png
