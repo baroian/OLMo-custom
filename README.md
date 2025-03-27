@@ -1,6 +1,6 @@
 # OLMo Custom Training
 
-This repository contains scripts for training custom OLMo language models on specific datasets. The primary script, `OLMo2-190M-wiki-subset.py`, trains a lightweight 190M parameter OLMo model on a small subset of Wikipedia data.
+This repository contains scripts for training 190M parameters OLMo language models on Wikipedia dataset (3.7B tokens). The primary script, `OLMo2-190M-w.py`, trains a lightweight 190M parameter OLMo model on a small subset of Wikipedia data.
 
 ## OLMo2-190M-wiki-subset
 
