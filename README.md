@@ -1,7 +1,8 @@
 # OLMo 190M Training
 
-<<<<<<< HEAD
-This repository contains a script for training a lightweight 190M parameter OLMo model on Wikipedia data. The script, `190M_train.py`, provides a complete training pipeline with command-line configuration options.
+
+### This repository contains a script for training a lightweight 190M parameter OLMo model on Wikipedia data. The script, `190M_train.py`, provides a complete training pipeline with command-line configuration options.
+
 =======
 This repository contains scripts for training 190M parameters OLMo language models on Wikipedia dataset (3.7B tokens). The primary script, `OLMo2-190M-w.py`, trains a lightweight 190M parameter OLMo model on a small subset of Wikipedia data.
 
