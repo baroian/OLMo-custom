@@ -1,6 +1,29 @@
 # OLMo 190M Training
 
+<<<<<<< HEAD
 This repository contains a script for training a lightweight 190M parameter OLMo model on Wikipedia data. The script, `190M_train.py`, provides a complete training pipeline with command-line configuration options.
+=======
+This repository contains scripts for training 190M parameters OLMo language models on Wikipedia dataset (3.7B tokens). The primary script, `OLMo2-190M-w.py`, trains a lightweight 190M parameter OLMo model on a small subset of Wikipedia data.
+
+## OLMo2-190M-wiki-subset
+
+This script performs a complete training pipeline for a small OLMo model:
+
+1. Downloads a tiny subset of Wikipedia data (0.2% or less, depending on scale factor)
+2. Tokenizes it using the GPT NeoX OLMo Dolma v1.5 tokenizer
+3. Converts it to the `.npy` format expected by OLMo
+4. Trains a 190M parameter model on this data
+5. Periodically runs inference to showcase model progress
+
+### Key Features
+
+- **Customizable Scale**: Adjust `scale_factor` to control training duration (1 = 1000 steps)
+- **Batch Size Control**: Modify `batch_size_factor` to adjust effective batch size
+- **Data Storage Management**: All cache and output directories are configured to use `/data1` to avoid quota issues
+- **WandB Integration**: Tracks metrics and generated text in Weights & Biases
+- **Progress Monitoring**: Includes both console logging and progress bar during training
+- **Inference Testing**: Periodically generates text from a prompt to evaluate model quality
+>>>>>>> 72276e0064b6e9707cbac2f9827bd5f2c38abdcb
 
 ## 190M_train.py
 
