@@ -188,7 +188,7 @@ Some dependencies are specified in `environment.yml`, but manual installation as
 ## notes / observations
 
 - **Througoutput**:  gtx 3090 24gb - 20k TPS (tokens per second);  a100 40gb - 75k TPS (1h = 128 SBUs); H100 95gb - 135k TPS (1h = 192 SBUs)
-H100 - 1.5 times 
+- H100 - 1.5 times more expensive, 1.8 times more eficient - worth it 
 
 
 ## Acknowledgements
