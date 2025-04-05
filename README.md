@@ -65,22 +65,52 @@ To set up your environment for `190M_train.py`:
 ## Running the Training Job (Example on Snellius with Slurm)
 
 1.  **Allocate GPU resources:**
+    Request an interactive session on a GPU node using `salloc`. For example, to request 1 H100 GPU for 30 minutes:
     ```bash
-    # Request 1 A100 GPU for 1 hour
-    salloc --partition=gpu_a100 --gres=gpu:a100:1 --time=01:00:00
+    salloc --partition=gpu_h100 --gres=gpu:h100:1 --time=00:30:00
+    # Or for an A100:
+    # salloc --partition=gpu_a100 --gres=gpu:a100:1 --time=01:00:00
+    ```
+    You will see output similar to this, indicating the job is waiting and then granted:
+    ```text
+    salloc: Single-node jobs run on a shared node by default. Add --exclusive if you want to use a node exclusively.
+    salloc: A full node consists of 64 CPU cores, 737280 MiB of memory and 4 GPUs and can be shared by up to 4 jobs.
+    salloc: By default shared jobs get 11520 MiB of memory per CPU core, unless explicitly overridden with --mem-per-cpu, --mem-per-gpu or --mem.
+    salloc: You will be charged for 1 GPUs, based on the number of CPUs, GPUs and the amount memory that you've requested.
+    salloc: Pending job allocation 10991487
+    salloc: job 10991487 queued and waiting for resources
+    salloc: job 10991487 has been allocated resources
+    salloc: Granted job allocation 10991487
+    salloc: Waiting for resource configuration
+    salloc: Nodes gcn135 are ready for job
+    ```
+    Once the allocation is granted, you need to ssh into the node, for example:
+    
+    ```bash
+    ssh gcn135
     ```
 
-2.  **Navigate to the project directory and run the training script:**
+
+2.  **Run the training script on the allocated node:**
+    Now that you are on the compute node (e.g., `gcn135`):
     ```bash
-    # Ensure modules are loaded if in a new shell session
+    # Load necessary modules *on the compute node*
     module load 2024
     module load Miniconda3/24.7.1-0
     source $EBROOTMINICONDA3/etc/profile.d/conda.sh
+    # Ensure the correct PyTorch module for the allocated GPU is loaded
+    # Example for A100/H100:
+    module load PyTorch/2.1.2-foss-2023a-CUDA-12.1.1
 
-    cd /path/to/OLMo-custom/ # Navigate to your project directory
+    # Navigate to your project directory (if not already there)
+    # cd /path/to/OLMo-custom/ # Adjust path if necessary
+
+    # Activate the conda environment
     conda activate olmo
+
+    # Run the training script
     python 190M_train.py --batch-size=24 --steps=100
-    # Note: Batch size 24 is recommended (empirically best, 32 gives CUDA out of memory) for a 40GB A100 GPU
+    # Note: Batch size 24 is recommended (empirically best, 32 gives CUDA out of memory) for a 40GB A100 GPU. Adjust accordingly for H100 or other GPUs.
     ```
 
 ## Command-line Arguments
@@ -152,6 +182,12 @@ Some dependencies are specified in `environment.yml`, but manual installation as
 ### To Investigate:
 -   **Inference Quality**: Inference results seem weak even after significant training (e.g., 500M tokens). Investigate potential causes (hyperparameters, implementation issues, etc.).
 -   **Efficiency**: Explore low-hanging fruit for performance improvements (e.g., data loading optimization, gradient accumulation strategies).
+
+
+## Random notes / observations
+
+- **Througoutput**:  gtx 3090 24gb - 20k TPS (tokens per second);  a100 40gb - 75k TPS (1h = 128 SBUs); H100 95gb - 135k TPS (1h = 192 SBUs)
+
 
 ## Acknowledgements
 

@@ -305,7 +305,8 @@ class InferenceCallback(Callback):
         print(message, flush=True)
         # Only write to file if the log file path is defined
         if self.log_file:
-            with open(self.log_file, "a") as f:
+            # Open the file with UTF-8 encoding
+            with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(f"{message}\n")
         
     def pre_train(self):
@@ -333,81 +334,80 @@ class InferenceCallback(Callback):
         # Run final inference
         self.log_message("Running final inference with trained model...")
         self.run_inference(self.trainer.global_step)
-        
     def run_inference(self, step):
-    """Generate text with the model for monitoring training progress."""
+        """Generate text with the model for monitoring training progress."""
         self.log_message(f"Running inference at step {step}...")
     
-    # Save original model state
+        # Save original model state
         was_training = self.model.training
         self.model.eval()  # Set to evaluation mode
     
-    # Tokenize the prompt
+        # Tokenize the prompt
         tokens = self.inference_tokenizer.encode(self.inference_prompt)
     
-    # Ensure no token ID 0 in prompt
-    tokens = [t for t in tokens if t != 0]
+        # Ensure no token ID 0 in prompt
+        tokens = [t for t in tokens if t != 0]
     
         token_tensor = torch.tensor([tokens], device=self.model.device)
     
-    with torch.no_grad():
-        # Initial forward pass
+        with torch.no_grad():
+            # Initial forward pass
             logits = self.model(token_tensor)  # OLMo returns logits directly
         
-        # Setup generation
-        generated_tokens = tokens.copy()
-        max_new_tokens = 50
-        temperature = 0.8  # Add some randomness
-        
-        for _ in range(max_new_tokens):
-            # Get predictions for next token
-            next_token_logits = logits[0, -1, :]
+            # Setup generation
+            generated_tokens = tokens.copy()
+            max_new_tokens = 50
+            temperature = 0.8  # Add some randomness
             
-            # Apply temperature
-            next_token_logits = next_token_logits / temperature
-            
-            # Create a mask to filter out token ID 0
-            mask = torch.ones_like(next_token_logits, dtype=torch.bool)
-            mask[0] = False  # Mask out token ID 0
-            
-            # Apply the mask (set masked logits to negative infinity)
-            masked_logits = next_token_logits.clone()
-            masked_logits[~mask] = -float('inf')
-            
-            # Apply softmax to masked logits
-            probs = torch.nn.functional.softmax(masked_logits, dim=-1)
-            
-            # Sample from the distribution
-            next_token = torch.multinomial(probs, num_samples=1).item()
-            
-            # Stop if EOS token
+            for _ in range(max_new_tokens):
+                # Get predictions for next token
+                next_token_logits = logits[0, -1, :]
+                
+                # Apply temperature
+                next_token_logits = next_token_logits / temperature
+                
+                # Create a mask to filter out token ID 0
+                mask = torch.ones_like(next_token_logits, dtype=torch.bool)
+                mask[0] = False  # Mask out token ID 0
+                
+                # Apply the mask (set masked logits to negative infinity)
+                masked_logits = next_token_logits.clone()
+                masked_logits[~mask] = -float('inf')
+                
+                # Apply softmax to masked logits
+                probs = torch.nn.functional.softmax(masked_logits, dim=-1)
+                
+                # Sample from the distribution
+                next_token = torch.multinomial(probs, num_samples=1).item()
+                
+                # Stop if EOS token
                 if next_token == self.tokenizer_config.eos_token_id:
-                break
-            
-            # Add token and continue
-            generated_tokens.append(next_token)
+                    break
+                
+                # Add token and continue
+                generated_tokens.append(next_token)
                 next_input = torch.tensor([generated_tokens], device=self.model.device)
                 logits = self.model(next_input)
     
-    # Decode the generated text
+        # Decode the generated text
         generated_text = self.inference_tokenizer.decode(generated_tokens)
     
-    # Log output
-    message = f"INFERENCE at Step {step}: \"{generated_text}\""
+        # Log output
+        message = f"INFERENCE at Step {step}: \"{generated_text}\""
         self.log_message(message)
     
-    # Log to W&B
-    if wandb.run is not None:
-        wandb.log({
-            "inference/generated_text": wandb.Html(f"<p>{generated_text}</p>"),
-            "inference/generated_length": len(generated_tokens) - len(tokens)
-        }, step=step)
+        # Log to W&B
+        if wandb.run is not None:
+            wandb.log({
+                "inference/generated_text": wandb.Html(f"<p>{generated_text}</p>"),
+                "inference/generated_length": len(generated_tokens) - len(tokens)
+            }, step=step)
     
-    # Restore original model state
-    if was_training:
+        # Restore original model state
+        if was_training:
             self.model.train()
     
-    return generated_text
+        return generated_text
 
 # Add this instead of the monkey-patching code
 inference_callback = InferenceCallback(
@@ -419,29 +419,29 @@ inference_callback = InferenceCallback(
 )
 
 # Configure trainer
-        trainer_config = TrainerConfig(
-            save_folder=save_folder,
-            save_overwrite=True,
-            metrics_collect_interval=10,
+trainer_config = TrainerConfig(
+    save_folder=save_folder,
+    save_overwrite=True,
+    metrics_collect_interval=10,
     cancel_check_interval=5,
-            max_duration=Duration.steps(TOTAL_STEPS),
+    max_duration=Duration.steps(TOTAL_STEPS),
     device=str(device)
-        ).with_callback(
-            "wandb",
-            WandBCallback(
-                name=wandb.run.name if wandb.run else "olmo-190m-wiki",
-                entity=None,  # Use default entity
-                project="olmo-190m-wikipedia",
-                enabled=True,
-                cancel_check_interval=10,
+).with_callback(
+    "wandb",
+    WandBCallback(
+        name=wandb.run.name if wandb.run else "olmo-190m-wiki",
+        entity=None,  # Use default entity
+        project="olmo-190m-wikipedia",
+        enabled=True,
+        cancel_check_interval=10,
     )
 ).with_callback(
     "inference",
     inference_callback
-        )
+)
         
-        # Build trainer
-        trainer = trainer_config.build(
+# Build trainer
+trainer = trainer_config.build(
     train_module=train_module,
     data_loader=data_loader
 )
@@ -449,8 +449,8 @@ print("Trainer built successfully")
 
 # Run training
 print(f"Starting training for {TOTAL_STEPS} steps...")
-        trainer.fit()
+trainer.fit()
 print("Training complete!")
         
-        # Close wandb
-        wandb.finish()
+# Close wandb
+wandb.finish()
