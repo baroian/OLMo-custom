@@ -178,15 +178,17 @@ Some dependencies are specified in `environment.yml`, but manual installation as
 ### Fixes Needed:
 -   **Checkpointing**: Current checkpoint saving/loading mechanism is not fully functional.
 -   **Data Pipeline**: Data download/preprocessing should be separated into a dedicated script (e.g., `download_data.py`). Training script should assume data is already processed and available.
+- **Data Pipeline**: still some bugs when running, might stop working in the middle of training
 
 ### To Investigate:
 -   **Inference Quality**: Inference results seem weak even after significant training (e.g., 500M tokens). Investigate potential causes (hyperparameters, implementation issues, etc.).
 -   **Efficiency**: Explore low-hanging fruit for performance improvements (e.g., data loading optimization, gradient accumulation strategies).
 
 
-## Random notes / observations
+## notes / observations
 
 - **Througoutput**:  gtx 3090 24gb - 20k TPS (tokens per second);  a100 40gb - 75k TPS (1h = 128 SBUs); H100 95gb - 135k TPS (1h = 192 SBUs)
+H100 - 1.5 times 
 
 
 ## Acknowledgements
